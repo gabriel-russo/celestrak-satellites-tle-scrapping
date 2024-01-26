@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  db:
+    image: postgis/postgis
+    ports:
+      - "5432:5432"
+    restart: on-failure
+    env_file:
+      - .docker.env

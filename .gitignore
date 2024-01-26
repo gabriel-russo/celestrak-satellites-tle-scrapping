@@ -1,3 +1,10 @@
+
+# Ignore dynaconf secret files
+.secrets.yaml
+settings.yaml
+.docker.env
+.idea
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
