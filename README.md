@@ -6,3 +6,7 @@ Rename files and edit files:
 ```commandline
 python3 main.py
 ```
+
+The generated table will look like this (10 first lines):
+
+![](docs/celestrak-satellites-tle-scrapping.png)
