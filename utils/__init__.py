@@ -3,6 +3,31 @@ from skyfield.iokit import parse_tle_file
 from io import BytesIO
 from pandas import DataFrame
 from shapely.geometry import MultiPolygon
+from skyfield.api import load, wgs84, EarthSatellite
+from re import split
+
+
+def dms_to_dd(dms) -> float:
+    try:
+        deg, minutes, seconds, _ = split("[°'\"]", dms)
+    except:
+        deg, minutes, seconds = "0", "0", "0"
+
+    return float(deg) + float(minutes) / 60 + float(seconds) / (60 * 60)
+
+
+def get_satellite_lat_lng(
+    satellite: EarthSatellite, timestamp: load.timescale().now()
+) -> dict:
+    geocentric = satellite.at(timestamp)
+
+    position = wgs84.geographic_position_of(geocentric)
+
+    lat = str(position.latitude).replace("deg", "°").replace(" ", "")
+    lng = str(position.longitude).replace("deg", "°").replace(" ", "")
+    elevation = position.elevation.m
+
+    return {"lat": dms_to_dd(lat), "lng": dms_to_dd(lng), "alt": elevation}
 
 
 def convert_to_multipolygon(poly):
@@ -12,11 +37,7 @@ def convert_to_multipolygon(poly):
         return poly
 
 
-def remove_whitespace(text):
-    return text.replace(" ", "").replace("\n", "").replace("\t", "").replace("\r", "")
-
-
-def decompose_tle(lines, ts=None, skip_names=False):
+def decompose_tle(lines, ts=None, skip_names=False) -> dict:
     b0 = b1 = b""
     for b2 in lines:
         if (
@@ -43,7 +64,7 @@ def decompose_tle(lines, ts=None, skip_names=False):
             b1 = b2
 
 
-def tle_file(url, ts=None, skip_names=False):
+def tle_file(url, ts=None, skip_names=False) -> list[EarthSatellite]:
     req = get(
         url,
         stream=True,
@@ -53,14 +74,14 @@ def tle_file(url, ts=None, skip_names=False):
         return list(parse_tle_file(f, ts, skip_names))
 
 
-def celestrak_active_sat_tle_file(ts=None, skip_names=False):
+def celestrak_active_sat_tle_file(ts=None, skip_names=False) -> DataFrame:
     req = get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
 
     with BytesIO(req.content) as f:
         return DataFrame.from_records(list(decompose_tle(f, ts, skip_names)))
 
 
-def celestrak_active_sat_json_file():
+def celestrak_active_sat_json_file() -> DataFrame:
     return DataFrame.from_records(
         get(
             "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json"
