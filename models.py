@@ -1,6 +1,8 @@
 from sqlalchemy import String, Integer, REAL, TIMESTAMP, SmallInteger
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 from sqlalchemy.sql.functions import now
+from datetime import datetime
+from geoalchemy2 import Geometry
 from config import settings
 
 
@@ -18,7 +20,7 @@ class Satellites(Base):
     name: Mapped[str] = mapped_column(String(length=32), index=True, nullable=False)
     line1: Mapped[str] = mapped_column(String(length=256), nullable=False)
     line2: Mapped[str] = mapped_column(String(length=256), nullable=False)
-    epoch: Mapped[float] = mapped_column(TIMESTAMP, nullable=True)
+    epoch: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     mean_motion: Mapped[float] = mapped_column(REAL, nullable=True)
     eccentricity: Mapped[float] = mapped_column(REAL, nullable=True)
     inclination: Mapped[float] = mapped_column(REAL, nullable=True)
@@ -32,8 +34,11 @@ class Satellites(Base):
     bstar: Mapped[float] = mapped_column(REAL, nullable=True)
     mean_motion_dot: Mapped[float] = mapped_column(REAL, nullable=True)
     mean_motion_ddot: Mapped[float] = mapped_column(REAL, nullable=True)
-    last_update: Mapped[TIMESTAMP] = mapped_column(
-        TIMESTAMP, nullable=True, server_default=now(), onupdate=now()
+    last_update: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True, server_default=now(), onupdate=now()
+    )
+    geom: Mapped[Geometry] = mapped_column(
+        Geometry(geometry_type="POINT", srid=4326), nullable=False
     )
 
     def __str__(self):

@@ -2,10 +2,13 @@ from logger import logger
 from sys import exit
 from sqlalchemy import create_engine, select, text, insert, update, bindparam
 from config import settings
+from pandas import to_datetime
+from geopandas import GeoDataFrame, points_from_xy
 from models import Base, Satellites
 from utils import (
     celestrak_active_sat_tle_file,
     celestrak_active_sat_json_file,
+    get_satellite_lat_lng,
 )
 
 
@@ -45,6 +48,8 @@ def load_data(db_conn):
         inplace=True,
     )
 
+    df_celestrak_json.epoch = to_datetime(df_celestrak_json.epoch)
+
     logger.log_info("Merging TLE data with JSON data...")
 
     df_newest_celestrak_data = df_celestrak_tle.merge(
@@ -55,6 +60,24 @@ def load_data(db_conn):
         f"Merging complete! merge table created with {len(df_newest_celestrak_data)} rows!"
     )
 
+    logger.log_info("Processing geographic data...")
+
+    df_newest_celestrak_data["lat"] = 0.0
+    df_newest_celestrak_data["lng"] = 0.0
+
+    for index, row in df_newest_celestrak_data.iterrows():
+        position = get_satellite_lat_lng(row.line1, row.line2, row["name"], row.epoch)
+        df_newest_celestrak_data.loc[index, "lat"] = position["lat"]
+        df_newest_celestrak_data.loc[index, "lng"] = position["lng"]
+
+    gdf_newest_celestrak_data = GeoDataFrame(
+        data=df_newest_celestrak_data,
+        geometry=points_from_xy(
+            df_newest_celestrak_data.lng, df_newest_celestrak_data.lat
+        ),
+        crs=4326,
+    )
+
     logger.log_info("Checking if table has any data...")
 
     table_data = db_conn.execute(select(Satellites).limit(1)).all()
@@ -62,8 +85,11 @@ def load_data(db_conn):
     table_has_data = len(table_data) > 0
 
     if not table_has_data:
+        gdf_newest_celestrak_data.rename(columns={"geometry": "geom"}, inplace=True)
         logger.log_info("Table is empty, loading all satellites data into database!")
-        db_conn.execute(insert(Satellites), df_newest_celestrak_data.to_dict("records"))
+        db_conn.execute(
+            insert(Satellites), gdf_newest_celestrak_data.to_wkt().to_dict("records")
+        )
         db_conn.commit()
         logger.log_info(f"Satellites data inserted into database successfully!")
         return
@@ -71,12 +97,12 @@ def load_data(db_conn):
     logger.log_info("Table has data, updating table...")
 
     try:
-        df_newest_celestrak_data.rename(
-            columns={"norad_id": "to_norad_id"}, inplace=True
+        gdf_newest_celestrak_data.rename(
+            columns={"norad_id": "to_norad_id", "geometry": "geom"}, inplace=True
         )
         affected_rows = db_conn.execute(
             update(Satellites).where(Satellites.norad_id == bindparam("to_norad_id")),
-            df_newest_celestrak_data.to_dict("records"),
+            gdf_newest_celestrak_data.to_wkt().to_dict("records"),
         )
         db_conn.commit()
         logger.log_info(

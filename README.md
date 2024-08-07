@@ -33,3 +33,4 @@ Table columns:
 - mean_motion_dot
 - mean_motion_ddot
 - last_update
+- geom
