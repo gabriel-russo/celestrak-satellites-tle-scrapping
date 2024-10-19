@@ -2,7 +2,7 @@ from requests import get
 from skyfield.iokit import parse_tle_file
 from io import BytesIO
 from pandas import DataFrame
-from shapely.geometry import MultiPolygon
+from shapely.geometry import MultiPolygon, Point, LineString
 from skyfield.api import load, wgs84, EarthSatellite
 from re import split
 
@@ -43,6 +43,17 @@ def convert_to_multipolygon(poly):
         return MultiPolygon([poly])
     else:
         return poly
+
+
+def create_point(lat: float, lng: float) -> Point:
+    return Point(lng, lat)
+
+
+def create_linestring_from_points(points: [Point]) -> LineString:
+    if len(points) < 2:
+        raise ValueError("A linestring must have at least 2 points")
+
+    return LineString(points)
 
 
 def decompose_tle(lines, ts=None, skip_names=False) -> dict:

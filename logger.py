@@ -19,6 +19,7 @@ class Logger(metaclass=SingletonMeta):
     def __init__(self):
         self.logger = None
         self.timers = {}
+        self.count = {}
 
     def initialize(self, name: str, path: str = getcwd(), filename: str = "script.log"):
         self.logger = getLogger(name)
@@ -51,6 +52,12 @@ class Logger(metaclass=SingletonMeta):
 
     def end_timer(self, name: str):
         return datetime.now() - self.timers[name]
+
+    def do_count(self, name: str, value):
+        self.count[name] = self.count.get(name, 0) + value
+
+    def get_count(self, name: str):
+        return self.count.get(name, None)
 
 
 logger = Logger()

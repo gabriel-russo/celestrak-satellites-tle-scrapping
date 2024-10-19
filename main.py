@@ -1,18 +1,23 @@
 from logger import logger
 from sys import exit
-from sqlalchemy import create_engine, select, text, insert, update, bindparam
+from datetime import timedelta
+from sqlalchemy import create_engine, text, select
+from sqlalchemy.sql.functions import now
+from sqlalchemy.dialects.postgresql import insert
 from config import settings
 from pandas import to_datetime
-from geopandas import GeoDataFrame, points_from_xy
+from geopandas import GeoDataFrame
 from models import Base, Satellites
 from utils import (
     celestrak_active_sat_tle_file,
     celestrak_active_sat_json_file,
     get_satellite_lat_lng,
+    create_linestring_from_points,
+    create_point,
 )
 
 
-def load_data(db_conn):
+def scrap_data(db_conn):
     df_celestrak_tle = celestrak_active_sat_tle_file()
 
     logger.log_info(
@@ -60,56 +65,70 @@ def load_data(db_conn):
         f"Merging complete! merge table created with {len(df_newest_celestrak_data)} rows!"
     )
 
-    logger.log_info("Processing geographic data...")
+    logger.log_info("Processing geospatial data...")
 
-    df_newest_celestrak_data["lat"] = 0.0
-    df_newest_celestrak_data["lng"] = 0.0
+    df_newest_celestrak_data["geom"] = None
 
     for index, row in df_newest_celestrak_data.iterrows():
-        position = get_satellite_lat_lng(row.line1, row.line2, row["name"], row.epoch)
-        df_newest_celestrak_data.loc[index, "lat"] = position["lat"]
-        df_newest_celestrak_data.loc[index, "lng"] = position["lng"]
+        forecast_position_points = []
+
+        for hour in range(0, 13):
+            position_forecast = get_satellite_lat_lng(
+                row.line1,
+                row.line2,
+                row["name"],
+                row.epoch + timedelta(hours=hour),
+            )
+            forecast_position_points.append(create_point(**position_forecast))
+
+        df_newest_celestrak_data.loc[index, "geom"] = create_linestring_from_points(
+            forecast_position_points.copy()
+        )
+
+        forecast_position_points.clear()
 
     gdf_newest_celestrak_data = GeoDataFrame(
         data=df_newest_celestrak_data,
-        geometry=points_from_xy(
-            df_newest_celestrak_data.lng, df_newest_celestrak_data.lat
-        ),
+        geometry="geom",
         crs=4326,
     )
 
-    logger.log_info("Checking if table has any data...")
+    logger.log_info("Inserting data into database...")
 
-    table_data = db_conn.execute(select(Satellites).limit(1)).all()
+    for index, row in gdf_newest_celestrak_data.to_wkt().iterrows():
+        stmt = insert(Satellites).values(row.to_dict())
 
-    table_has_data = len(table_data) > 0
-
-    if not table_has_data:
-        gdf_newest_celestrak_data.rename(columns={"geometry": "geom"}, inplace=True)
-        logger.log_info("Table is empty, loading all satellites data into database!")
-        db_conn.execute(
-            insert(Satellites), gdf_newest_celestrak_data.to_wkt().to_dict("records")
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["norad_id"],
+            set_={
+                "line1": stmt.excluded.line1,
+                "line2": stmt.excluded.line2,
+                "epoch": stmt.excluded.epoch,
+                "mean_motion": stmt.excluded.mean_motion,
+                "eccentricity": stmt.excluded.eccentricity,
+                "inclination": stmt.excluded.inclination,
+                "ra_of_asc_node": stmt.excluded.ra_of_asc_node,
+                "arg_of_pericenter": stmt.excluded.arg_of_pericenter,
+                "mean_anomaly": stmt.excluded.mean_anomaly,
+                "ephemeris_type": stmt.excluded.ephemeris_type,
+                "classification_type": stmt.excluded.classification_type,
+                "element_set_no": stmt.excluded.element_set_no,
+                "rev_at_epoch": stmt.excluded.rev_at_epoch,
+                "bstar": stmt.excluded.bstar,
+                "mean_motion_dot": stmt.excluded.mean_motion_dot,
+                "mean_motion_ddot": stmt.excluded.mean_motion_ddot,
+                "last_change": now(),
+            },
+            where=Satellites.checksum != stmt.excluded.checksum,
         )
-        db_conn.commit()
-        logger.log_info(f"Satellites data inserted into database successfully!")
-        return
 
-    logger.log_info("Table has data, updating table...")
+        result = db_conn.execute(stmt)
 
-    try:
-        gdf_newest_celestrak_data.rename(
-            columns={"norad_id": "to_norad_id", "geometry": "geom"}, inplace=True
-        )
-        affected_rows = db_conn.execute(
-            update(Satellites).where(Satellites.norad_id == bindparam("to_norad_id")),
-            gdf_newest_celestrak_data.to_wkt().to_dict("records"),
-        )
-        db_conn.commit()
-        logger.log_info(
-            f"Table updated successfully! {affected_rows.rowcount} rows affected"
-        )
-    except BaseException as err:
-        logger.log_error(f"Error updating!. Error msg: {err}")
+        logger.do_count("insert", result.rowcount)
+
+    db_conn.commit()
+
+    logger.log_info(f"Satellites data inserted into database successfully!")
 
 
 if __name__ == "__main__":
@@ -118,6 +137,7 @@ if __name__ == "__main__":
         path=settings.logging.path,
         filename=settings.logging.filename,
     )
+
     logger.log_info("Starting script...")
 
     db_engine = create_engine(
@@ -125,7 +145,7 @@ if __name__ == "__main__":
     )
 
     try:
-        db_engine.connect().execute(text("SELECT 1")).fetchone()
+        db_engine.connect().execute(select(1)).fetchone()
         logger.log_info("Database connection OK!")
     except BaseException as db_err:
         logger.log_error(
@@ -144,13 +164,12 @@ if __name__ == "__main__":
         ).fetchone()
 
         if table_satellites_exists:
-            logger.log_info("Table satellites exists!")
-            logger.log_info("Starting to Collect and Load some satellites!")
+            logger.log_info("Table OK... Starting to Collect some satellite data!")
             logger.start_timer("load_data_timer")
-            load_data(conn)
-            logger.log_info(
-                f'Load data finished! Time elapsed: {logger.end_timer("load_data_timer")}h'
-            )
+            scrap_data(conn)
+            logger.log_info("Load data finished!")
+            logger.log_info(f'{logger.get_count("insert")} inserted or updated rows!')
+            logger.log_info(f'Time elapsed: {logger.end_timer("load_data_timer")}h')
         else:
             Base.metadata.create_all(db_engine)
             logger.log_warning("Table not found, MIGRATING... Execute script again!")
