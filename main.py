@@ -119,7 +119,9 @@ def scrap_data(db_conn):
                 "mean_motion_ddot": stmt.excluded.mean_motion_ddot,
                 "last_change": now(),
             },
-            where=Satellites.checksum != stmt.excluded.checksum,
+            where=text(
+                "EXCLUDED.fingerprint <> satellites.fingerprint AND EXCLUDED.epoch > satellites.epoch"
+            ),
         )
 
         result = db_conn.execute(stmt)

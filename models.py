@@ -42,9 +42,9 @@ class Satellites(Base):
     geom: Mapped[Geometry] = mapped_column(
         Geometry(geometry_type="LINESTRING", srid=4326), nullable=False
     )
-    checksum: Mapped[str] = mapped_column(
+    fingerprint: Mapped[str] = mapped_column(
         String(length=256),
-        Computed("(sha256((line1||line2)::bytea)::text)", persisted=True),
+        Computed("(sha256((norad_id||line1||line2)::bytea)::text)", persisted=True),
         nullable=False,
         unique=True,
     )
