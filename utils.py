@@ -1,10 +1,6 @@
-from requests import get
-from skyfield.iokit import parse_tle_file
-from io import BytesIO
-from pandas import DataFrame
+from re import split
 from shapely.geometry import MultiPolygon, Point, LineString
 from skyfield.api import load, wgs84, EarthSatellite
-from re import split
 
 
 def dms_to_dd(dms) -> float:
@@ -49,7 +45,7 @@ def create_point(lat: float, lng: float) -> Point:
     return Point(lng, lat)
 
 
-def create_linestring_from_points(points: [Point]) -> LineString:
+def create_linestring_from_points(points: list[Point]) -> LineString:
     if len(points) < 2:
         raise ValueError("A linestring must have at least 2 points")
 
@@ -81,28 +77,3 @@ def decompose_tle(lines, ts=None, skip_names=False) -> dict:
         else:
             b0 = b1
             b1 = b2
-
-
-def tle_file(url, ts=None, skip_names=False) -> list[EarthSatellite]:
-    req = get(
-        url,
-        stream=True,
-    )
-
-    with BytesIO(req.content) as f:
-        return list(parse_tle_file(f, ts, skip_names))
-
-
-def celestrak_active_sat_tle_file(ts=None, skip_names=False) -> DataFrame:
-    req = get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
-
-    with BytesIO(req.content) as f:
-        return DataFrame.from_records(list(decompose_tle(f, ts, skip_names)))
-
-
-def celestrak_active_sat_json_file() -> DataFrame:
-    return DataFrame.from_records(
-        get(
-            "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json"
-        ).json()
-    )
