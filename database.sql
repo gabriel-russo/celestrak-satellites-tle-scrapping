@@ -103,6 +103,8 @@ AS $$
 BEGIN
     INSERT INTO celestrak.satellites_log (norad_id, name, line1, line2, epoch, proc_time, geom)
     VALUES (OLD.norad_id, OLD.name, OLD.line1, OLD.line2, OLD.epoch, OLD.proc_time, OLD.geom);
+
+    RETURN NULL;
 END
 $$;
 
