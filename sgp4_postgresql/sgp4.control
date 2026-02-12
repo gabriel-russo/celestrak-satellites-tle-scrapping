@@ -1,0 +1,3 @@
+comment = 'SGP4 C implementation for PostgreSQL'
+default_version = '0.1'
+relocatable = true
