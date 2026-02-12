@@ -1,63 +1,63 @@
-from logging import getLogger, INFO, StreamHandler, FileHandler, Formatter
-from datetime import datetime
+from logging import getLogger, INFO, StreamHandler, FileHandler, Formatter, DEBUG
+from logging.handlers import SysLogHandler
 from os import getcwd
-from os.path import join
+from os.path import join, exists
 from sys import stdout
+from typing import Optional
 
 
 class SingletonMeta(type):
-    _instances = {}
+    """
+    Metaclass singleton.
+    """
+
+    __instance = None
 
     def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
+        if cls.__instance is None:
+            cls.__instance = super().__call__(*args, **kwargs)
+            return cls.__instance
+
+        return cls.__instance
 
 
 class Logger(metaclass=SingletonMeta):
-    def __init__(self):
-        self.logger = None
-        self.timers = {}
-        self.count = {}
+    def __init__(self, tag="python"):
+        self.__logger = getLogger(tag)
+        self.__logger.setLevel(INFO)
+        self.__logger.addHandler(StreamHandler(stdout))
+        self.__logger.addHandler(SysLogHandler(address="/dev/log"))
+        self.__bind_formatter_to_handlers()
 
-    def initialize(self, name: str, path: str = getcwd(), filename: str = "script.log"):
-        self.logger = getLogger(name)
-        self.logger.setLevel(INFO)
+    def __bind_formatter_to_handlers(self) -> None:
+        for handler in self.__logger.handlers:
+            handler.setFormatter(Formatter("%(name)s: [%(levelname)s] %(message)s"))
 
-        log_format = Formatter(
-            fmt="|%(asctime)s| %(levelname)s > %(message)s",
-            datefmt="%d/%m %H:%M:%S",
-        )
+    def enable_debug_mode(self) -> None:
+        self.__logger.setLevel(DEBUG)
 
-        file_handler = FileHandler(join(path, filename))
-        file_handler.setFormatter(log_format)
-        self.logger.addHandler(file_handler)
+    def bind_file(self, filename: str, path: Optional[str] = getcwd()) -> None:
+        if filename == "":
+            raise Exception("Filename required.")
 
-        stdout_handler = StreamHandler(stdout)
-        stdout_handler.setFormatter(log_format)
-        self.logger.addHandler(stdout_handler)
+        if not exists(path):
+            raise Exception("Path to folder is not valid.")
 
-    def log_info(self, msg: str):
-        self.logger.info(msg)
+        if not filename.endswith(".log"):
+            filename += ".log"
 
-    def log_warning(self, msg: str):
-        self.logger.warning(msg)
+        self.__logger.addHandler(FileHandler(join(path, filename)))
 
-    def log_error(self, msg: str):
-        self.logger.error(msg)
+        self.__bind_formatter_to_handlers()
 
-    def start_timer(self, name: str):
-        self.timers[name] = datetime.now()
+    def info(self, msg: str) -> None:
+        self.__logger.info(msg)
 
-    def end_timer(self, name: str):
-        return datetime.now() - self.timers[name]
+    def warning(self, msg: str) -> None:
+        self.__logger.warning(msg)
 
-    def do_count(self, name: str, value):
-        self.count[name] = self.count.get(name, 0) + value
+    def error(self, msg: str) -> None:
+        self.__logger.error(msg)
 
-    def get_count(self, name: str):
-        return self.count.get(name, None)
-
-
-logger = Logger()
+    def debug(self, msg: str) -> None:
+        self.__logger.debug(msg)

@@ -1,0 +1,3 @@
+HOST = 'localhost'
+PORT = '5432'
+NAME = 'my-database'
