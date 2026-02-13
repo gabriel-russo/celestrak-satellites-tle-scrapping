@@ -35,7 +35,7 @@ def get_satellite_lat_lng(
     lng = str(position.longitude).replace("deg", "°").replace(" ", "")
     elevation = position.elevation.m
 
-    return {"lat": dms_to_dd(lat), "lng": dms_to_dd(lng), "elevation": elevation}
+    return {"lat": dms_to_dd(lat), "lng": dms_to_dd(lng), "elevation": float(elevation)}
 
 
 def convert_to_multipolygon(poly):
