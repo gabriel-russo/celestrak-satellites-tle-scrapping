@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS celestrak.satellites (
     mean_motion_ddot DOUBLE PRECISION,
     proc_time TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     geom GEOMETRY(PointZ, 4326) NOT NULL,
+    geom2d GEOMETRY(Point, 4326) GENERATED ALWAYS AS (ST_Force2D(geom)) STORED,
     CONSTRAINT satellite_identity UNIQUE (norad_id)
 );
 
@@ -114,10 +115,80 @@ FOR EACH ROW
 WHEN (OLD.line1 IS DISTINCT FROM NEW.line1 OR OLD.line2 IS DISTINCT FROM NEW.line2)
 EXECUTE FUNCTION celestrak.trigger_fn_satellites_log();
 
-CREATE OR REPLACE FUNCTION CELESTRAK.GEOGRAPHIC_POSITION_OF (
+CREATE VIEW celestrak.vw_satellites_now AS (
+	SELECT
+		norad_id AS norad_id,
+		name AS name,
+		NOW() AS local_time,
+		NOW() AT TIME ZONE 'UTC' AS utc_time,
+		celestrak.satellite_geographic_position_2d(line1, line2, NOW() AT TIME ZONE 'UTC') as geom
+	FROM celestrak.satellites
+);
+
+CREATE OR REPLACE FUNCTION celestrak.satellite_geographic_position(
     LINE1 CHARACTER VARYING,
     LINE2 CHARACTER VARYING,
-    AT_DATETIME TIMESTAMP WITH TIME ZONE
+    AT_DATETIME TIMESTAMP WITHOUT TIME ZONE
+) RETURNS GEOMETRY (POINTZ, 4326)
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+    RETURN ST_SetSRID(
+        ST_GeomFromText(
+            SATELLITE_GEOGRAPHIC_POSITION(
+                LINE1,
+                LINE2,
+                AT_DATETIME
+            )
+        ), 4326
+    );
+END
+$$;
+
+CREATE OR REPLACE FUNCTION celestrak.satellite_geographic_position_2d(
+    LINE1 CHARACTER VARYING,
+    LINE2 CHARACTER VARYING,
+    AT_DATETIME TIMESTAMP WITHOUT TIME ZONE
+) RETURNS GEOMETRY (POINT, 4326)
+LANGUAGE PLPGSQL
+AS $$
+BEGIN
+    RETURN ST_SetSRID(
+        ST_Force2D(
+            ST_GeomFromText(
+                SATELLITE_GEOGRAPHIC_POSITION(
+                    LINE1,
+                    LINE2,
+                    AT_DATETIME
+                )
+            )
+        ), 4326);
+END
+$$;
+
+CREATE OR REPLACE FUNCTION celestrak.satellite_route_prediction(
+    LINE1 CHARACTER VARYING,
+    LINE2 CHARACTER VARYING,
+    START_DATETIME TIMESTAMP WITHOUT TIME ZONE,
+	STEP_MINUTES INTEGER,
+	MAXIMUM_MINUTES INTEGER
+) RETURNS GEOMETRY (LINESTRING, 4326)
+LANGUAGE PLPGSQL
+AS $$
+DECLARE
+	vertix GEOMETRY(POINT, 4326)[];
+BEGIN
+	FOR num IN 1..MAXIMUM_MINUTES BY STEP_MINUTES LOOP
+		vertix := ARRAY_APPEND(vertix, celestrak.satellite_geographic_position_2d(LINE1, LINE2, START_DATETIME + make_interval(mins => num)));
+	END LOOP;
+	RETURN ST_MakeLine(vertix);
+END
+$$;
+
+CREATE OR REPLACE FUNCTION celestrak.satellite_approximate_geographic_position (
+    LINE1 CHARACTER VARYING,
+    LINE2 CHARACTER VARYING,
+    AT_DATETIME TIMESTAMP WITHOUT TIME ZONE
 ) RETURNS GEOMETRY (POINTZ, 4326)
 LANGUAGE PLPGSQL
 AS $$
