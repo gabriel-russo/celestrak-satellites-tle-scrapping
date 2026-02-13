@@ -298,7 +298,7 @@ void temeToGeodetic(double r[3], long millis,
          ptm->tm_sec,
          &jd, &jdfrac);
 
-    double gmst = gstime(jd + jdfrac);
+    double gmst = eratime(jd + jdfrac);
 
     // TEME → ECEF
     double x = r[0] * cos(gmst) + r[1] * sin(gmst);

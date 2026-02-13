@@ -275,4 +275,6 @@ double gstime(double jdut1);
 
 void jday(int year, int mon, int day, int hr, int minute, double sec, double *jd, double *jdfrac);
 
+double eratime(double jdut1); // ERA - Earth Rotation Angle
+
 #endif

@@ -60,7 +60,9 @@ typedef struct Position
 } Position;
 
 long isoToMillis(char *iso);
+
 void temeToGeodetic(double r[3], long millis, double *lat, double *lon, double *alt);
+
 Position satellite_geographic_position(char line1[], char line2[], char at[]);
 
 #endif

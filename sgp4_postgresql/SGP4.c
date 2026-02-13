@@ -1110,7 +1110,7 @@ void initl(double epoch, ElsetRec *rec)
         gsto1 = gsto1 + twopi;
     //    }
     //    else
-    rec->gsto = gstime(epoch + 2433281.5);
+    rec->gsto = eratime(epoch + 2433281.5);
 
 } // initl
 
@@ -2015,6 +2015,21 @@ void jday(int year, int mon, int day, int hr, int minute, double sec, double *jd
 
     return;
 } // jday
+
+double eratime(double jdut1)
+{
+    double d = jdut1 - 2451545.0;
+    double theta = 2.0 * M_PI *
+        (0.7790572732640 +
+         1.00273781191135448 * d);
+
+    /* normalize between 0 and 2π */
+    theta = fmod(theta, 2.0 * M_PI);
+    if (theta < 0.0)
+        theta += 2.0 * M_PI;
+
+    return theta;
+} // eratime
 
 // MIT License
 //
