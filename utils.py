@@ -1,7 +1,7 @@
 from datetime import datetime
 from re import split
 from typing import Generator, Optional
-from shapely.geometry import MultiPolygon, Point, LineString
+from shapely.geometry import Point
 from skyfield.api import load, wgs84, EarthSatellite
 
 
@@ -38,27 +38,13 @@ def get_satellite_lat_lng(
     return {"lat": dms_to_dd(lat), "lng": dms_to_dd(lng), "elevation": float(elevation)}
 
 
-def convert_to_multipolygon(poly):
-    if poly.geom_type == "Polygon":
-        return MultiPolygon([poly])
-    else:
-        return poly
-
-
 def create_point(lat: float, lng: float, elevation: Optional[float] = None) -> Point:
     if elevation:
         return Point(lng, lat, elevation)
     return Point(lng, lat)
 
 
-def create_linestring_from_points(points: list[Point]) -> LineString:
-    if len(points) < 2:
-        raise ValueError("A linestring must have at least 2 points")
-
-    return LineString(points)
-
-
-def decompose_tle(lines, ts=None, skip_names=False) -> Generator[dict, None, None]:
+def decompose_tle(lines, skip_names=False) -> Generator[dict, None, None]:
     b0 = b1 = b""
     for b2 in lines:
         if (

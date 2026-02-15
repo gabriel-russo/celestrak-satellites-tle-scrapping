@@ -9,17 +9,19 @@ log = Logger(tag="celestrak")
 
 
 def main(conn: Connection):
-    for satellite in celestrak_active_satellites():
+    with conn.cursor() as cur:
+        for satellite in celestrak_active_satellites():
 
-        geom = create_point(
-            **get_satellite_lat_lng(
-                satellite["line1"], satellite["line2"], satellite["epoch"]
+            geom = create_point(
+                **get_satellite_lat_lng(
+                    satellite["line1"], satellite["line2"], satellite["epoch"]
+                )
             )
-        )
 
-        log.info(f"Inserting {satellite['name']} - X {geom.x} Y {geom.y} Z {geom.z}")
+            log.debug(
+                f"Inserting {satellite['name']} - X {geom.x} Y {geom.y} Z {geom.z}"
+            )
 
-        with conn.cursor() as cur:
             cur.execute(
                 """
             INSERT INTO celestrak.satellites (
@@ -94,6 +96,9 @@ def main(conn: Connection):
 def start():
     config = read_config()
 
+    if config.DEBUG:
+        log.enable_debug_mode()
+
     conn = connect(
         f"host={config.HOST} "
         f"port={config.PORT} "
@@ -111,36 +116,3 @@ if __name__ == "__main__":
     log.info("Initializing script.")
     start()
     log.info("Script finished.")
-
-    # log.info("Starting script...")
-    #
-    # db_engine = create_engine(
-    #     f"postgresql+psycopg://{settings.postgis_user}:{settings.postgis_password}@{settings.database.host}:{settings.database.port}/{settings.database.name}"
-    # )
-    #
-    # try:
-    #     db_engine.connect().execute(select(1)).fetchone()
-    #     log.info("Database connection OK!")
-    # except BaseException as db_err:
-    #     log.error(
-    #         f"Database connection error! Check configs or db connection!. Msg: {db_err}"
-    #     )
-    #     exit(1)
-    #
-    # with db_engine.connect() as conn:
-    #     log.info(
-    #         f"Checking if table {settings.database.schema}.satellites exists..."
-    #     )
-    #     table_satellites_exists = conn.execute(
-    #         text(
-    #             f"SELECT * FROM pg_tables WHERE schemaname = '{settings.database.schema}' AND tablename = 'satellites'"
-    #         )
-    #     ).fetchone()
-    #
-    #     if table_satellites_exists:
-    #         log.info("Table OK... Starting to Collect some satellite data!")
-    #         scrap_data(conn)
-    #         log.info("Load data finished!")
-    #     else:
-    #         Base.metadata.create_all(db_engine)
-    #         log.warning("Table not found, MIGRATING... Execute script again!")

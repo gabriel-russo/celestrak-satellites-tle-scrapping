@@ -27,17 +27,30 @@ class CelestrakActiveSatellite(TypedDict):
     mean_motion_ddot: float
 
 
-def celestrak_active_satellites(
-    ts=None, skip_names=False
-) -> Generator[CelestrakActiveSatellite, None, None]:
+def get_active_satellites_tle(skip_names: bool = False) -> list[dict]:
     req = get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
 
-    with BytesIO(req.content) as f:
-        tle = list(decompose_tle(f, ts, skip_names))
+    req.raise_for_status()
 
-    json = get(
-        "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json"
-    ).json()
+    with BytesIO(req.content) as f:
+        tle = list(decompose_tle(f, skip_names))
+
+    return tle
+
+
+def get_active_satellites_data() -> list[dict]:
+    req = get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json")
+
+    req.raise_for_status()
+
+    return req.json()
+
+
+def celestrak_active_satellites() -> Generator[CelestrakActiveSatellite, None, None]:
+
+    tle = get_active_satellites_tle()
+
+    json = get_active_satellites_data()
 
     tle_index = {item["name"]: item for item in tle}
 
