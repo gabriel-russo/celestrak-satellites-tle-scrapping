@@ -1,36 +1,44 @@
+# celestrak-satellites-tle-scrapping
+
+Scrapper for celestrak active satellites data.
+
+## Configuration file
 Rename files and edit files:
-- `.secrets.yaml.template` -> `.secrets.yaml`
-- `settings.yaml.template` -> `settings.yaml`
+- `.secrets.toml.template` -> `.secrets.toml`
+- `settings.toml.template` -> `settings.toml`
+
+## Install dependecies
+```commandline
+pip install -r requirements.txt
+```
 
 ```commandline
 python3 main.py
 ```
+## Execute SQL
 
-The generated table will look like this:
+As postgres user:
+
+```commandline
+psql <your-database> -f database.sql
+```
+
+Or just copy and paste inside pgadmin4.
+
+## Final result
 
 ![](docs/celestrak-satellites-tle-scrapping.png)
 
-Table columns:
+![](docs/map.png)
 
-- id
-- norad_id
-- cospar_id
-- name
-- line1
-- line2
-- epoch
-- mean_motion
-- eccentricity
-- inclination
-- ra_of_asc_node
-- arg_of_pericenter
-- mean_anomaly
-- ephemeris_type
-- classification_type
-- element_set_no
-- rev_at_epoch
-- bstar
-- mean_motion_dot
-- mean_motion_ddot
-- last_update
-- geom
+## PostgreSQL SPG4 integration
+
+Install:
+
+https://github.com/gabriel-russo/postgresql-sgp4
+
+And run:
+
+```commandline
+psql <your-database> -f postgresql-sgp4-integration.sql
+```
