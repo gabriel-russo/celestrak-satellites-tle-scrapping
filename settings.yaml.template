@@ -1,9 +1,0 @@
---- # Update me and rename to settings.yaml
-database:
-  host: 'localhost'
-  port: '5432'
-  name: 'my-database'
-  schema: 'my-schema'
-logging:
-  path: '.'
-  filename: 'celestrak_scrapper.log'

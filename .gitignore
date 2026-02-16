@@ -1,9 +1,11 @@
 
 # Ignore dynaconf secret files
-.secrets.yaml
-settings.yaml
+.secrets.toml
+settings.toml
 .docker.env
 .idea
+.vscode
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
