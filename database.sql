@@ -88,8 +88,10 @@ CREATE INDEX index_satellites_name ON celestrak.satellites(name);
 
 CREATE INDEX index_satellites_geom ON celestrak.satellites USING GIST(geom);
 
+CREATE INDEX index_satellites_geom2d ON celestrak.satellites USING GIST(geom2d);
+
 CREATE TABLE IF NOT EXISTS celestrak.satellites_log (
-    norad_id INTEGER NOT NULL,
+    norad_id INTEGER NOT NULL REFERENCES celestrak.satellites(norad_id),
     name VARCHAR(24) NOT NULL,
     line1 VARCHAR(128) NOT NULL,
     line2 VARCHAR(128) NOT NULL,

@@ -12,9 +12,6 @@ Rename files and edit files:
 pip install -r requirements.txt
 ```
 
-```commandline
-python3 main.py
-```
 ## Execute SQL
 
 As postgres user:
@@ -24,6 +21,12 @@ psql <your-database> -f database.sql
 ```
 
 Or just copy and paste inside pgadmin4.
+
+## Run
+
+```commandline
+python3 main.py
+```
 
 ## Final result
 
