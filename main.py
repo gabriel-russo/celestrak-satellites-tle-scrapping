@@ -24,7 +24,7 @@ def main(conn: Connection):
 
             cur.execute(
                 """
-            INSERT INTO celestrak.satellites (
+            INSERT INTO celestrak.satellites AS sat (
             norad_id,
             cospar_id,
             name,
@@ -48,8 +48,6 @@ def main(conn: Connection):
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT ON CONSTRAINT satellite_identity DO UPDATE
             SET
-            cospar_id = EXCLUDED.cospar_id,
-            name = EXCLUDED.name,
             line1 = EXCLUDED.line1,
             line2 = EXCLUDED.line2,
             epoch = EXCLUDED.epoch,
@@ -66,7 +64,9 @@ def main(conn: Connection):
             bstar = EXCLUDED.bstar,
             mean_motion_dot = EXCLUDED.mean_motion_dot,
             mean_motion_ddot = EXCLUDED.mean_motion_ddot,
+            proc_time = NOW(),
             geom = EXCLUDED.geom
+            WHERE sat.line1 <> EXCLUDED.line1 OR sat.line2 <> EXCLUDED.line2
             """,
                 (
                     satellite["norad_id"],
