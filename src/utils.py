@@ -42,30 +42,3 @@ def create_point(lat: float, lng: float, elevation: Optional[float] = None) -> P
     if elevation:
         return Point(lng, lat, elevation)
     return Point(lng, lat)
-
-
-def decompose_tle(lines, skip_names=False) -> Generator[dict, None, None]:
-    b0 = b1 = b""
-    for b2 in lines:
-        if (
-            b2.startswith(b"2 ")
-            and len(b2) >= 69
-            and b1.startswith(b"1 ")
-            and len(b1) >= 69
-        ):
-            if not skip_names and b0:
-                b0 = b0.rstrip(b" \n\r")
-                if b0.startswith(b"0 "):
-                    b0 = b0[2:]  # Spacetrack 3-line format
-                name = b0.decode("ascii")
-            else:
-                name = None
-
-            line1 = b1.decode("ascii")
-            line2 = b2.decode("ascii")
-            yield {"name": name, "line1": line1, "line2": line2}
-
-            b0 = b1 = b""
-        else:
-            b0 = b1
-            b1 = b2
