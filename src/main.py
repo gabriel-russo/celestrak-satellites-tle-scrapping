@@ -113,6 +113,10 @@ def start():
 
 
 if __name__ == "__main__":
-    log.info("Initializing script.")
-    start()
-    log.info("Script finished.")
+    try:
+        log.info("Initializing script.")
+        start()
+    except Exception as error:
+        log.error(f"Error - {error}")
+    finally:
+        log.info("Script finished.")

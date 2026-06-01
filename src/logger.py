@@ -3,7 +3,6 @@ from logging.handlers import SysLogHandler
 from os import getcwd
 from os.path import join, exists
 from sys import stdout
-from typing import Optional
 
 
 class SingletonMeta(type):
@@ -36,7 +35,7 @@ class Logger(metaclass=SingletonMeta):
     def enable_debug_mode(self) -> None:
         self.__logger.setLevel(DEBUG)
 
-    def bind_file(self, filename: str, path: Optional[str] = getcwd()) -> None:
+    def bind_file(self, filename: str, path: str = getcwd()) -> None:
         if filename == "":
             raise Exception("Filename required.")
 

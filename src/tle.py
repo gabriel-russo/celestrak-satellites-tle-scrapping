@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import TypeAlias, Union
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 from math import floor, log10
-from decimal import Decimal, ROUND_HALF_UP
+from typing import TypeAlias, Union
 from celestrak_types import SatelliteTLE, SatelliteJSON
 
 number: TypeAlias = Union[int, float]
@@ -113,21 +113,22 @@ def format_eccentricity(val: number) -> str:
     Formats orbital eccentricity into a strict 7-column fixed string.
 
     Args:
-        val: The numerical value to be formatted.
+        val: The numerical value of the orbital eccentricity.
 
     Notes:
-        * **Dropping the Radix:** The TLE standard implicitly assumes that eccentricity always starts with `0.`,
-            also this function strips the first two characters from the formatted string.
-        * **Strict Boundary Clamping:** If the input eccentricity is extremely close to 1.0 (e.g., `0.99999996`),
-            a standard floating-point round forces the value to `1.0000000`. Since standard TLEs are strictly reserved
-            for elliptical or circular orbits (where eccentricity must be less than 1.0), the function intercepts this
-            behavior and forces the absolute ceiling value: `"9999999"`.
+        * **Omitting the Radix (`0.`):** The TLE format reserves a rigid 7-column block (columns 27 to 33 of Line 2)
+            for thefor eccentricity, implicitly assuming the value always falls within the range `[0, 1)`.
+            Because of this layout constraint, the leading `0.` characters are discarded from the final string (`s[2:]`).
+        * **Truncation vs. Rounding:** The function leverages the Python `decimal` module configured with
+            the `ROUND_DOWN` flag. This guarantees that the value is sliced cleanly at the 7th decimal place,
+            ignoring any trailing fractional digits. This prevents values like `0.00008149` from accidentally
+            rounding up to `0.0000815`.
     """
     if val < 0:
         val = 0.0
-    d = Decimal(str(val)).quantize(Decimal(".0000001"), rounding=ROUND_HALF_UP)
 
-    # Evita a falha '0000000' quando o float arredonda para 1.0
+    d = Decimal(str(val)).quantize(Decimal(".0000001"), rounding=ROUND_DOWN)
+
     if d >= Decimal("1.0000000"):
         return "9999999"
 
