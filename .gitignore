@@ -6,6 +6,7 @@ settings.toml
 .idea
 .vscode
 data/
+dev/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

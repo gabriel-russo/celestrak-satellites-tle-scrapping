@@ -3,8 +3,8 @@ CREATE SCHEMA IF NOT EXISTS "celestrak";
 CREATE TABLE IF NOT EXISTS celestrak.satellites (
     id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     norad_id INTEGER NOT NULL,
-    cospar_id VARCHAR(10),
-    name VARCHAR(24) NOT NULL,
+    cospar_id VARCHAR(13),
+    name VARCHAR(64) NOT NULL,
     line1 VARCHAR(128) NOT NULL,
     line2 VARCHAR(128) NOT NULL,
     epoch TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -92,7 +92,7 @@ CREATE INDEX index_satellites_geom2d ON celestrak.satellites USING GIST(geom2d);
 
 CREATE TABLE IF NOT EXISTS celestrak.satellites_log (
     norad_id INTEGER NOT NULL REFERENCES celestrak.satellites(norad_id),
-    name VARCHAR(24) NOT NULL,
+    name VARCHAR(64) NOT NULL,
     line1 VARCHAR(128) NOT NULL,
     line2 VARCHAR(128) NOT NULL,
     epoch TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -106,7 +106,6 @@ AS $$
 BEGIN
     INSERT INTO celestrak.satellites_log (norad_id, name, line1, line2, epoch, proc_time, geom)
     VALUES (OLD.norad_id, OLD.name, OLD.line1, OLD.line2, OLD.epoch, OLD.proc_time, OLD.geom);
-
     RETURN NULL;
 END
 $$;
